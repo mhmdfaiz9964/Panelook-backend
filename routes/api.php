@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\ActivityLogController;
 use App\Http\Controllers\Api\Admin\AttributeController;
 use App\Http\Controllers\Api\Admin\BannerController;
 use App\Http\Controllers\Api\Admin\BrandController;
+use App\Http\Controllers\Api\Admin\BulkProductController;
 use App\Http\Controllers\Api\Admin\CategoryController;
 use App\Http\Controllers\Api\Admin\CouponController;
 use App\Http\Controllers\Api\Admin\PanelPinController;
@@ -105,6 +106,8 @@ Route::middleware(['auth:sanctum'])->prefix('admin')->group(function () {
 
     // Products Management
     Route::get('/products', [AdminController::class, 'productsIndex']);
+    Route::get('/products/bulk/sample', [BulkProductController::class, 'downloadSample']);
+    Route::post('/products/bulk/upload', [BulkProductController::class, 'uploadBulk']);
     Route::get('/products/{id}', [AdminController::class, 'productShow']);
     Route::post('/products', [AdminController::class, 'storeProduct']);
     Route::put('/products/{id}', [AdminController::class, 'updateProduct']);

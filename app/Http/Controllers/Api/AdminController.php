@@ -234,10 +234,13 @@ class AdminController extends Controller
             'condition' => 'nullable|string|max:100',
             'description' => 'nullable|string',
             'short_description' => 'nullable|string',
+            'compatibility' => 'nullable|string',
             'is_featured' => 'nullable|boolean',
             'is_new' => 'nullable|boolean',
             'is_sale' => 'nullable|boolean',
+            'laptop_model' => 'nullable|string',
             'laptop_models' => 'nullable',
+            'panel_number' => 'nullable|string',
             'part_numbers' => 'nullable',
             'tags' => 'nullable',
             'images' => 'nullable',
@@ -258,14 +261,17 @@ class AdminController extends Controller
             $tagsList = $this->parseArrayInput($request->input('tags'));
             $imagesList = $this->parseArrayInput($request->input('images'));
 
+            $laptopModelVal = !empty($modelsList) ? implode(' / ', $modelsList) : $request->input('laptop_model');
+            $panelNumberVal = !empty($partsList) ? implode(', ', $partsList) : $request->input('panel_number');
+
             $productData = array_merge($validated, [
                 'slug' => $slug,
                 'status' => $request->input('status', 'active'),
                 'is_featured' => filter_var($request->input('is_featured', false), FILTER_VALIDATE_BOOLEAN),
                 'is_new' => filter_var($request->input('is_new', false), FILTER_VALIDATE_BOOLEAN),
                 'is_sale' => filter_var($request->input('is_sale', false), FILTER_VALIDATE_BOOLEAN),
-                'laptop_model' => !empty($modelsList) ? implode(' / ', $modelsList) : $request->input('laptop_model'),
-                'panel_number' => !empty($partsList) ? $partsList[0] : $request->input('panel_number'),
+                'laptop_model' => $laptopModelVal,
+                'panel_number' => $panelNumberVal,
                 'images' => !empty($imagesList) ? $imagesList : null,
             ]);
 
@@ -275,30 +281,33 @@ class AdminController extends Controller
 
             // Sync laptop models
             foreach ($modelsList as $m) {
-                if (trim($m) !== '') {
+                $cleanM = trim($m);
+                if ($cleanM !== '') {
                     ProductLaptopModel::create([
                         'product_id' => $product->id,
-                        'model_name' => trim($m),
+                        'model_name' => mb_substr($cleanM, 0, 255),
                     ]);
                 }
             }
 
             // Sync part numbers
             foreach ($partsList as $p) {
-                if (trim($p) !== '') {
+                $cleanP = trim($p);
+                if ($cleanP !== '') {
                     ProductPartNumber::create([
                         'product_id' => $product->id,
-                        'part_number' => trim($p),
+                        'part_number' => mb_substr($cleanP, 0, 255),
                     ]);
                 }
             }
 
             // Sync tags
             foreach ($tagsList as $t) {
-                if (trim($t) !== '') {
+                $cleanT = trim($t);
+                if ($cleanT !== '') {
                     ProductTag::create([
                         'product_id' => $product->id,
-                        'tag' => trim($t),
+                        'tag' => mb_substr($cleanT, 0, 255),
                     ]);
                 }
             }
@@ -374,10 +383,13 @@ class AdminController extends Controller
             'condition' => 'nullable|string|max:100',
             'description' => 'nullable|string',
             'short_description' => 'nullable|string',
+            'compatibility' => 'nullable|string',
             'is_featured' => 'nullable|boolean',
             'is_new' => 'nullable|boolean',
             'is_sale' => 'nullable|boolean',
+            'laptop_model' => 'nullable|string',
             'laptop_models' => 'nullable',
+            'panel_number' => 'nullable|string',
             'part_numbers' => 'nullable',
             'tags' => 'nullable',
             'images' => 'nullable',
@@ -391,11 +403,17 @@ class AdminController extends Controller
 
             $updateData = $validated;
             if ($modelsList !== null) {
-                $updateData['laptop_model'] = implode(' / ', $modelsList);
+                $updateData['laptop_model'] = !empty($modelsList) ? implode(' / ', $modelsList) : null;
+            } elseif ($request->has('laptop_model')) {
+                $updateData['laptop_model'] = $request->input('laptop_model');
             }
-            if ($partsList !== null && count($partsList) > 0) {
-                $updateData['panel_number'] = $partsList[0];
+
+            if ($partsList !== null) {
+                $updateData['panel_number'] = !empty($partsList) ? implode(', ', $partsList) : null;
+            } elseif ($request->has('panel_number')) {
+                $updateData['panel_number'] = $request->input('panel_number');
             }
+
             if ($imagesList !== null) {
                 $updateData['images'] = $imagesList;
             }
@@ -408,10 +426,11 @@ class AdminController extends Controller
             if ($modelsList !== null) {
                 $product->laptopModels()->delete();
                 foreach ($modelsList as $m) {
-                    if (trim($m) !== '') {
+                    $cleanM = trim($m);
+                    if ($cleanM !== '') {
                         ProductLaptopModel::create([
                             'product_id' => $product->id,
-                            'model_name' => trim($m),
+                            'model_name' => mb_substr($cleanM, 0, 255),
                         ]);
                     }
                 }
@@ -421,10 +440,11 @@ class AdminController extends Controller
             if ($partsList !== null) {
                 $product->partNumbers()->delete();
                 foreach ($partsList as $p) {
-                    if (trim($p) !== '') {
+                    $cleanP = trim($p);
+                    if ($cleanP !== '') {
                         ProductPartNumber::create([
                             'product_id' => $product->id,
-                            'part_number' => trim($p),
+                            'part_number' => mb_substr($cleanP, 0, 255),
                         ]);
                     }
                 }
@@ -540,6 +560,9 @@ class AdminController extends Controller
 
     private function parseArrayInput($input): array
     {
+        if (empty($input)) {
+            return [];
+        }
         if (is_array($input)) {
             return array_values(array_filter($input, fn($v) => !is_null($v) && $v !== ''));
         }
@@ -550,6 +573,7 @@ class AdminController extends Controller
             }
             return array_values(array_filter(array_map('trim', explode(',', $input)), fn($v) => $v !== ''));
         }
+        return [];
     }
 
     public function inventoryLogs()
